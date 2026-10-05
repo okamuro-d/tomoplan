@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TomoPlan - 友達とサクッと決まる日程調整</title>
+  <meta name="description" content="友達との飲み会や旅行、遊びの予定をサクッと調整できるシンプル＆おしゃれな日程調整Webアプリ。URLで簡単共有、ベスト日程の自動判定、LINE共有対応。">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-theme="light">
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand" id="brandLogo" role="button" tabindex="0">
+        <div class="brand-icon">
+          <span>📅</span>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">TomoPlan</span>
+          <span class="brand-subtitle">友達との予定調整をスムーズに</span>
+        </div>
+      </div>
+      
+      <div class="header-actions">
+        <button id="btnNewEventNav" class="btn btn-secondary btn-sm">
+          <span class="icon">➕</span> 新規作成
+        </button>
+        <button id="btnHistoryModal" class="btn btn-secondary btn-sm" title="保存済みイベント">
+          <span class="icon">📂</span> 履歴
+        </button>
+        <button id="btnThemeToggle" class="btn btn-icon" aria-label="テーマ切り替え" title="ダーク/ライトモード切り替え">
+          <span id="themeIcon">🌙</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="app-main">
+    <div class="container">
+      
+      <!-- VIEW 1: イベント作成画面 -->
+      <section id="viewCreate" class="view-section active">
+        <div class="card create-card">
+          <div class="card-header">
+            <div class="badge badge-primary">Step 1</div>
+            <h1 class="card-title">新しいイベントを作成</h1>
+            <p class="card-desc">イベント情報と候補日程を入力して、友達に送る共有リンクを発行しましょう。</p>
+          </div>
+
+          <form id="createEventForm" onsubmit="return false;">
+            <!-- 基本情報 -->
+            <div class="form-group">
+              <label for="eventTitle" class="form-label required">イベント名</label>
+              <input type="text" id="eventTitle" class="form-input" placeholder="例: 🍻 週末ごはん会、⛺ キャンプ旅行、🎮 オンライン対戦" required maxlength="50">
+            </div>
+
+            <div class="form-group">
+              <label for="eventDescription" class="form-label">説明・場所・予算（任意）</label>
+              <textarea id="eventDescription" class="form-textarea" rows="2" placeholder="例: 新宿周辺で19時頃スタート希望！予算は4,000円前後の予定です。"></textarea>
+            </div>
+
+            <!-- 候補日程入力エリア -->
+            <div class="form-group">
+              <div class="section-title-wrap">
+                <label class="form-label required">候補日程を追加</label>
+                <span class="text-hint">複数選択可能です</span>
+              </div>
+
+              <!-- クイック候補日追加ボタン -->
+              <div class="quick-preset-bar">
+                <span class="preset-label">クイック追加:</span>
+                <button type="button" class="btn-chip" id="btnAddThisMonthWeekend">今月土日</button>
+                <button type="button" class="btn-chip" id="btnAddNextMonthWeekend">来月土日</button>
+                <button type="button" class="btn-chip" id="btnAddMonthAfterNextWeekend">再来月土日</button>
+                <button type="button" class="btn-chip" id="btnLoadDemoEvent">✨ デモデータを試す</button>
+              </div>
+
+              <!-- 日付・時間指定ビルダー -->
+              <div class="candidate-picker-box">
+                <div class="picker-row">
+                  <div class="picker-col">
+                    <label for="pickerDate" class="picker-label">日付</label>
+                    <input type="date" id="pickerDate" class="form-input">
+                  </div>
+                  <div class="picker-col">
+                    <label for="pickerTimeType" class="picker-label">時間帯プリセット</label>
+                    <select id="pickerTimeType" class="form-select">
+                      <option value="終日">終日</option>
+                      <option value="昼 (12:00〜)">昼 (12:00〜)</option>
+                      <option value="夜 (18:00〜)">夜 (18:00〜)</option>
+                      <option value="夜 (19:00〜)">夜 (19:00〜)</option>
+                      <option value="午前">午前中</option>
+                      <option value="午後">午後</option>
+                      <option value="custom">時間指定 (手入力)...</option>
+                    </select>
+                  </div>
+                  <div class="picker-col hidden" id="customTimeCol">
+                    <label for="pickerCustomTime" class="picker-label">カスタム時間</label>
+                    <input type="text" id="pickerCustomTime" class="form-input" placeholder="例: 14:00〜17:00">
+                  </div>
+                  <div class="picker-col btn-add-col">
+                    <label class="picker-label">&nbsp;</label>
+                    <button type="button" id="btnAddCandidate" class="btn btn-primary btn-block">
+                      <span>＋ 候補に追加</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- テキスト一括追加アコーディオン -->
+                <details class="text-input-accordion">
+                  <summary class="accordion-summary">📝 テキストでまとめて貼り付けて追加する</summary>
+                  <div class="accordion-body">
+                    <p class="text-hint">1行に1つの候補日を入力してください（例: 10/18(土) 19:00〜）</p>
+                    <textarea id="bulkDateText" class="form-textarea" rows="3" placeholder="10/24(土) 18:00〜&#10;10/25(日) 13:00〜&#10;10/31(土) 終日"></textarea>
+                    <button type="button" id="btnApplyBulkDates" class="btn btn-secondary btn-sm mt-2">一括反映</button>
+                  </div>
+                </details>
+              </div>
+
+              <!-- 登録された候補日タグ一覧 -->
+              <div class="selected-candidates-wrap">
+                <div class="candidates-header">
+                  <span class="candidates-count-label">選択された候補日 (<span id="candidateCount">0</span>件):</span>
+                  <button type="button" id="btnClearAllCandidates" class="btn-text-danger hidden">すべてクリア</button>
+                </div>
+                <div id="candidateList" class="candidate-tags-container">
+                  <p class="empty-hint" id="noCandidateHint">日付を選んで「候補に追加」を押してください。</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 参加予定メンバーセクション（任意） -->
+            <div class="form-group members-section">
+              <div class="section-title-wrap">
+                <label for="memberInput" class="form-label">👥 参加予定メンバー（任意）</label>
+                <span class="text-hint">登録すると回答時に名前をワンタップで選べます</span>
+              </div>
+              <div class="member-input-box">
+                <div class="member-input-row">
+                  <input type="text" id="memberInput" class="form-input" placeholder="名前を入力（例: さくら, けんた, たなか）カンマ区切りで一括追加可" maxlength="40">
+                  <button type="button" id="btnAddMember" class="btn btn-secondary">＋追加</button>
+                </div>
+                <div id="membersList" class="candidate-tags-container member-tags-container">
+                  <p class="empty-hint" id="noMembersHint">メンバーを登録すると、回答時の名前選択や必須指定が簡単になります。</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- イベントの前提ルール（事前フィルタ） -->
+            <details class="form-group rules-card" id="rulesCard">
+              <summary class="rules-summary">
+                <span>📏 イベントの前提ルール（任意）</span>
+                <span class="rules-badge hidden" id="rulesBadge">設定中</span>
+              </summary>
+              <div class="rules-body">
+                <label class="switch-row" for="ruleExcludeNg">
+                  <input type="checkbox" id="ruleExcludeNg" class="switch-input">
+                  <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+                  <span class="switch-text">
+                    <strong>誰か1人でも✕を付けた日程は候補から除外</strong>
+                    <small>以降の参加者は、その日程に回答できなくなります（本人は再回答で取り消せます）</small>
+                  </span>
+                </label>
+
+                <div class="rules-required">
+                  <label class="form-label">👤 必須参加者 <span class="text-hint">✕を付けたら、その日程は除外されます</span></label>
+                  <div id="requiredMembersPicker" class="required-members-picker">
+                    <!-- 登録メンバーからチェックボックス選択UIを動的描画 -->
+                  </div>
+                </div>
+
+                <p class="text-hint rules-note">ℹ️ 「N人以上参加可能」は全員の回答後に決まるため、ルールではなく結果画面のフィルタで使えます。</p>
+              </div>
+            </details>
+
+            <!-- 作成ボタン -->
+            <div class="form-actions">
+              <button type="button" id="btnCreateEvent" class="btn btn-primary btn-lg btn-glow btn-block">
+                <span>🚀 イベントを作成して共有リンクを発行</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- VIEW 2: イベント確認・回答・集計画面 -->
+      <section id="viewDetail" class="view-section">
+        
+        <!-- イベント基本情報カード -->
+        <div class="card event-banner-card">
+          <div class="event-banner-content">
+            <div class="event-meta-badge">
+              <span class="badge badge-success" id="eventStatusBadge">日程調整中</span>
+              <span class="badge badge-secondary" id="syncStatusBadge">💾 ローカル</span>
+              <span class="meta-date" id="eventCreatedDate"></span>
+            </div>
+            <h1 class="event-view-title" id="eventViewTitle"></h1>
+            <p class="event-view-desc" id="eventViewDesc"></p>
+
+            <!-- 共有・アクションバー -->
+            <div class="share-action-bar">
+              <button id="btnCopyShareUrl" class="btn btn-primary">
+                <span class="icon">🔗</span> リンクをコピー
+              </button>
+              <button id="btnCopyLineText" class="btn btn-line">
+                <span class="icon">💬</span> LINE用テキスト
+              </button>
+              <button id="btnExportImage" class="btn btn-accent" title="LINEのアルバム・ノートに貼れる1枚の画像を出力">
+                <span class="icon">🖼️</span> 画像で保存 / LINE共有
+              </button>
+              <button id="btnShareModal" class="btn btn-secondary">
+                <span class="icon">📤</span> その他共有
+              </button>
+              <button id="btnEditEventMeta" class="btn btn-ghost" title="イベント情報・日程の編集">
+                <span class="icon">✏️</span> イベント編集
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 🏆 ベスト日程ハイライトカード -->
+        <div id="bestDateCard" class="card best-date-card">
+          <div class="best-date-badge">
+            <span class="trophy-icon">🏆</span>
+            <span class="badge-title">一番人気・おすすめの日程</span>
+          </div>
+          <div class="best-date-body">
+            <div class="best-date-info">
+              <h2 class="best-date-heading" id="bestDateText">集計中...</h2>
+              <div class="best-date-stats" id="bestDateStats"></div>
+            </div>
+            <div class="best-date-actions">
+              <button id="btnAddToIcs" class="btn btn-secondary btn-sm" title="iPhone・Mac・Outlookの標準カレンダーへ追加">
+                <span class="icon">🍏</span> カレンダーに追加 (.ics)
+              </button>
+              <button id="btnAddToCalendar" class="btn btn-accent btn-sm" title="ブラウザでGoogleカレンダーへ追加">
+                <span class="icon">📅</span> Googleカレンダー
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 集計マトリクステーブルカード -->
+        <div class="card matrix-card">
+          <div class="matrix-card-header">
+            <div>
+              <h2 class="section-title">📊 日程集計状況</h2>
+              <p class="section-subtitle">回答者: <strong id="respondentCount">0</strong>名</p>
+            </div>
+            <div class="matrix-legend">
+              <span class="legend-item"><span class="badge-circle mark-ok">◯</span> 参加可能 (2pt)</span>
+              <span class="legend-item"><span class="badge-circle mark-triangle">△</span> 未定 (1pt)</span>
+              <span class="legend-item"><span class="badge-circle mark-ng">✕</span> 不参加 (0pt)</span>
+            </div>
+          </div>
+
+          <!-- 絞り込みフィルタ（JSで描画） -->
+          <div class="filter-bar hidden" id="filterBar" aria-label="日程の絞り込み"></div>
+
+          <!-- テーブルコンテナ -->
+          <div class="table-responsive" id="matrixTableContainer">
+            <!-- JSで動的生成 -->
+          </div>
+        </div>
+
+        <!-- あなたの予定を回答するフォームカード -->
+        <div class="card response-form-card" id="responseCard">
+          <div class="card-header">
+            <div class="badge badge-accent">あなたの回答</div>
+            <h2 class="card-title">出欠を入力する</h2>
+            <p class="card-desc">お名前と各候補日の予定を選択して「回答を送信」を押してください。</p>
+          </div>
+
+          <form id="respondentForm" onsubmit="return false;">
+            <div class="form-group">
+              <label for="userName" class="form-label required">あなたのお名前・ニックネーム</label>
+              
+              <!-- 登録メンバー選択エリア (メンバー登録がある場合に自動表示) -->
+              <div id="memberSelectSection" class="member-select-section hidden">
+                <p class="member-select-hint">タップして回答するメンバーを選んでください:</p>
+                <div id="memberSelectChips" class="member-select-chips"></div>
+              </div>
+
+              <!-- 名前入力ラップ（メンバー未登録時、または「＋その他の名前」選択時に使用） -->
+              <div class="name-input-wrap" id="customNameWrap">
+                <input type="text" id="userName" class="form-input" placeholder="例: たなか、山田" required maxlength="20">
+                <div class="recent-names" id="recentNamesWrap"></div>
+              </div>
+            </div>
+
+            <!-- 一括選択ボタン -->
+            <div class="bulk-answer-bar">
+              <span class="bulk-label">一括選択:</span>
+              <button type="button" class="btn-bulk btn-bulk-ok" id="btnBulkOk">全て ◯</button>
+              <button type="button" class="btn-bulk btn-bulk-triangle" id="btnBulkTriangle">全て △</button>
+              <button type="button" class="btn-bulk btn-bulk-ng" id="btnBulkNg">全て ✕</button>
+            </div>
+
+            <!-- 各候補日への回答セレクター一覧 -->
+            <div class="dates-answer-list" id="datesAnswerList">
+              <!-- JSで動的生成 -->
+            </div>
+
+            <div class="form-group mt-3">
+              <label for="userComment" class="form-label">コメント・連絡事項（任意）</label>
+              <input type="text" id="userComment" class="form-input" placeholder="例: 19:30からなら参加できます！車出せます" maxlength="100">
+            </div>
+
+            <div class="form-actions">
+              <button type="button" id="btnSubmitResponse" class="btn btn-primary btn-lg btn-block">
+                <span>✨ 回答を送信する</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- 参加者コメント一覧タイムライン -->
+        <div class="card comments-card" id="commentsCard">
+          <div class="card-header">
+            <h2 class="section-title">💬 参加者からのコメント</h2>
+          </div>
+          <div class="comments-list" id="commentsList">
+            <!-- JSで動的生成 -->
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+  <!-- 共有モーダル -->
+  <div id="shareModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="shareModalTitle" class="modal-title">イベントの共有</h3>
+        <button type="button" class="modal-close" id="btnCloseShareModal" aria-label="閉じる">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-text">以下のリンクをコピーしてLINEやメッセージアプリで友達に送りましょう！</p>
+        
+        <div class="copy-box">
+          <input type="text" id="shareUrlInput" class="form-input" readonly>
+          <button type="button" id="btnModalCopyUrl" class="btn btn-primary">コピー</button>
+        </div>
+
+        <div class="share-section-divider">または</div>
+
+        <div class="line-message-preview">
+          <label class="form-label">LINE用送信文面プレビュー</label>
+          <textarea id="lineMessagePreview" class="form-textarea" rows="5" readonly></textarea>
+          <button type="button" id="btnModalCopyLineText" class="btn btn-line btn-block mt-2">
+            💬 LINE用文面をコピーする
+          </button>
+        </div>
+
+        <div class="share-section-divider">LINE・スマホ向け共有</div>
+
+        <div class="share-modal-actions-grid">
+          <button type="button" id="btnModalExportImage" class="btn btn-accent btn-block">
+            <span class="icon">🖼️</span> 結果画像を保存 / LINEで送る
+          </button>
+          <div class="modal-calendar-row">
+            <button type="button" id="btnModalIcs" class="btn btn-secondary">
+              <span class="icon">🍏</span> iPhoneカレンダー (.ics)
+            </button>
+            <button type="button" id="btnModalGCal" class="btn btn-secondary">
+              <span class="icon">📅</span> Googleカレンダー
+            </button>
+          </div>
+        </div>
+
+        <div class="qr-code-area" id="qrCodeArea">
+          <!-- QRコード生成エリア -->
+          <p class="qr-label">📱 スマホで読み取り</p>
+          <div id="qrCodeContainer" class="qr-container"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 結果画像プレビュー・保存モーダル -->
+  <div id="imagePreviewModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="imagePreviewTitle">
+    <div class="modal-card image-preview-card">
+      <div class="modal-header">
+        <h3 id="imagePreviewTitle" class="modal-title">🖼️ 日程調整の結果画像</h3>
+        <button type="button" class="modal-close" id="btnCloseImagePreview" aria-label="閉じる">&times;</button>
+      </div>
+      <div class="modal-body text-center">
+        <p class="modal-text">LINEのアルバムやノート、トークにそのまま貼り付けられます！</p>
+        <div class="image-preview-wrapper" id="imagePreviewWrapper">
+          <img id="imagePreviewImg" class="image-preview-img" alt="TomoPlan日程結果画像">
+        </div>
+        <p class="text-hint mt-2">📱 スマホでは画像を長押しして「写真に保存」も可能です。</p>
+        <div class="modal-actions mt-3">
+          <button type="button" class="btn btn-secondary" id="btnPreviewClose">閉じる</button>
+          <button type="button" class="btn btn-primary" id="btnPreviewDownload">
+            <span class="icon">💾</span> 画像を保存
+          </button>
+          <button type="button" class="btn btn-line hidden" id="btnPreviewShare">
+            <span class="icon">📤</span> LINE / アプリ共有
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 画像生成用のオフスクリーンDOMコンテナ (4:5 / 600px) -->
+  <div class="share-card-target-wrapper" id="shareCardTargetWrapper" aria-hidden="true">
+    <div class="share-card" id="shareCardTarget">
+      <!-- JSで動的に集計カードを描画 -->
+    </div>
+  </div>
+
+  <!-- 履歴・保存済みイベントモーダル -->
+  <div id="historyModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="historyModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="historyModalTitle" class="modal-title">保存されたイベント履歴</h3>
+        <button type="button" class="modal-close" id="btnCloseHistoryModal" aria-label="閉じる">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="history-list" id="historyListContainer">
+          <!-- JSで動的生成 -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- イベント編集モーダル -->
+  <div id="editEventModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="editModalTitle" class="modal-title">イベント情報の変更</h3>
+        <button type="button" class="modal-close" id="btnCloseEditModal" aria-label="閉じる">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="editEventTitle" class="form-label required">イベント名</label>
+          <input type="text" id="editEventTitle" class="form-input" required maxlength="50">
+        </div>
+        <div class="form-group">
+          <label for="editEventDescription" class="form-label">説明・場所など</label>
+          <textarea id="editEventDescription" class="form-textarea" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="editEventMembers" class="form-label">👥 参加予定メンバー（カンマ区切り）</label>
+          <input type="text" id="editEventMembers" class="form-input" placeholder="例: さくら, けんた, ダイキ, ゆい">
+        </div>
+        <div class="form-group">
+          <label class="switch-row" for="editRuleExcludeNg">
+            <input type="checkbox" id="editRuleExcludeNg" class="switch-input">
+            <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+            <span class="switch-text"><strong>誰か1人でも✕の日程は候補から除外</strong></span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label for="editRuleRequired" class="form-label">👤 必須参加者（カンマ区切り）</label>
+          <input type="text" id="editRuleRequired" class="form-input" placeholder="例: さくら, たかし">
+          <p class="text-hint">ルールを変更しても回答データは消えません。除外は表示時に再判定されます。</p>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="btnCancelEdit">キャンセル</button>
+          <button type="button" class="btn btn-primary" id="btnSaveEdit">変更を保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <div class="container footer-content">
+      <p class="footer-title">TomoPlan - 友達のためのスマートな日程調整</p>
+      <p class="footer-sub">登録不要・完全無料でURLを送るだけ！ブラウザだけで安全・快適に利用できます。</p>
+    </div>
+  </footer>
+
+  <!-- QRコード生成用ライブラリ (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <!-- html2canvas 画像化ライブラリ (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <!-- 設定ファイル & API同期クライアント -->
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <!-- メインJS -->
+  <script src="app.js"></script>
+</body>
+</html>
