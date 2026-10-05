@@ -144,43 +144,58 @@ const TomoApi = (function () {
   // ---------------------------------------------------------------------------
 
   /**
+   * 短縮IDの生成 (6文字・英数字混同防止base32)
+   */
+  function generateShortId(length = 6) {
+    const chars = '23456789abcdefghjkmnpqrstuvwxyz';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  /**
    * 現在のURLハッシュを解析
    * 返り値: { type: 'cloud', eventId: '...' } または { type: 'hash', raw: '...' } または null
    */
   function parseRoute() {
     const hash = window.location.hash || '';
-    if (!hash) return null;
+    if (!hash || hash === '#') return null;
 
-    // クラウド短縮URL: #/e/{id} または #e/{id}
-    const cloudMatch = hash.match(/^#\/?e\/([a-zA-Z0-9_\-]+)/);
-    if (cloudMatch && cloudMatch[1]) {
-      return { type: 'cloud', eventId: cloudMatch[1] };
-    }
-
-    // ハッシュデータ埋め込み: #data=...
+    // 1. ハッシュデータ埋め込み: #data=...
     const dataMatch = hash.match(/data=([^&]+)/);
     if (dataMatch && dataMatch[1]) {
       return { type: 'hash', raw: dataMatch[1] };
+    }
+
+    // 2. クラウド短縮URL:
+    //    - 極小形式: #abc123 または #/abc123
+    //    - 旧形式互換: #/e/evt_xxx または #e/evt_xxx
+    const trimmed = hash.replace(/^#\/?(e\/)?/, '');
+    if (/^[a-zA-Z0-9_\-]{4,28}$/.test(trimmed)) {
+      return { type: 'cloud', eventId: trimmed };
     }
 
     return null;
   }
 
   /**
-   * 共有用URLの生成
+   * 共有用URLの生成 (極小短縮形式)
    */
   function buildShareUrl(event) {
     if (!event) return window.location.href;
     const base = window.location.origin + window.location.pathname;
+    const cleanBase = base.endsWith('/') ? base : base + '/';
 
     if (isCloudEnabled()) {
-      // 短縮URL (例: https://example.com/#/e/evt_abc123)
-      return `${base}#/e/${event.id}`;
+      // 最短形式 (例: https://tomoplan.pages.dev/#abc123)
+      return `${cleanBase}#${event.id}`;
     } else {
       // LocalStorage / URLハッシュ埋め込み
       const jsonStr = JSON.stringify(event);
       const b64 = encodeURIComponent(btoa(unescape(encodeURIComponent(jsonStr))));
-      return `${base}#data=${b64}`;
+      return `${cleanBase}#data=${b64}`;
     }
   }
 
@@ -214,6 +229,7 @@ const TomoApi = (function () {
     updateEvent,
     parseRoute,
     buildShareUrl,
+    generateShortId,
     saveEditToken,
     getEditToken
   };

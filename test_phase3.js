@@ -104,15 +104,20 @@ console.log('Fallback Mode verified: ' + fallbackUrl.slice(0, 40) + '...');
 
 // Test 2: Route parsing
 console.log('Testing Route Parsing...');
-sandbox.window.location.hash = '#/e/evt_sample123';
+sandbox.window.location.hash = '#7m4k9x';
 let route = TomoApi.parseRoute();
 assert.strictEqual(route.type, 'cloud');
-assert.strictEqual(route.eventId, 'evt_sample123');
+assert.strictEqual(route.eventId, '7m4k9x');
 
-sandbox.window.location.hash = '#e/evt_sample456';
+sandbox.window.location.hash = '#/7m4k9x';
 route = TomoApi.parseRoute();
 assert.strictEqual(route.type, 'cloud');
-assert.strictEqual(route.eventId, 'evt_sample456');
+assert.strictEqual(route.eventId, '7m4k9x');
+
+sandbox.window.location.hash = '#/e/evt_sample123';
+route = TomoApi.parseRoute();
+assert.strictEqual(route.type, 'cloud');
+assert.strictEqual(route.eventId, 'evt_sample123');
 
 sandbox.window.location.hash = '#data=xyz123';
 route = TomoApi.parseRoute();
@@ -124,20 +129,26 @@ route = TomoApi.parseRoute();
 assert.strictEqual(route, null);
 console.log('Route Parsing verified.');
 
-// Test 3: Edit Token LocalStorage management
-console.log('Testing Edit Token storage...');
-TomoApi.saveEditToken('evt_123', 'tk_mysecret123');
-assert.strictEqual(TomoApi.getEditToken('evt_123'), 'tk_mysecret123');
+// Test 3: Edit Token & Short ID generation
+console.log('Testing Short ID & Edit Token storage...');
+const shortId = TomoApi.generateShortId(6);
+assert.strictEqual(shortId.length, 6);
+assert(/^[23456789abcdefghjkmnpqrstuvwxyz]{6}$/.test(shortId));
+console.log('Generated short ID sample:', shortId);
+
+TomoApi.saveEditToken('7m4k9x', 'tk_mysecret123');
+assert.strictEqual(TomoApi.getEditToken('7m4k9x'), 'tk_mysecret123');
 console.log('Edit Token storage verified.');
 
-// Test 4: Configure Cloud and verify Short URL
+// Test 4: Configure Cloud and verify Ultra-Short URL
 console.log('Testing Configured Cloud State...');
 sandbox.window.CONFIG.GAS_API_URL = 'https://script.google.com/macros/s/TEST/exec';
 assert.strictEqual(TomoApi.isCloudEnabled(), true, 'Cloud should be enabled');
 
-const cloudShareUrl = TomoApi.buildShareUrl(sampleEvent);
-assert.strictEqual(cloudShareUrl, 'https://tomoplan.local/#/e/evt_123', 'Cloud URL should be short #/e/{id}');
-console.log('Cloud Short URL verified:', cloudShareUrl);
+const shortSampleEvent = { id: '7m4k9x', title: 'テスト飲み会', candidates: [] };
+const cloudShareUrl = TomoApi.buildShareUrl(shortSampleEvent);
+assert.strictEqual(cloudShareUrl, 'https://tomoplan.local/#7m4k9x', 'Cloud URL should be ultra-short #code');
+console.log('Ultra-Short Cloud URL verified:', cloudShareUrl);
 
 // Test 5: Cloud API mock calls
 (async () => {

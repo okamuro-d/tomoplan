@@ -666,7 +666,7 @@ async function handleCreateEvent() {
 
   const newEvent = {
     schemaVersion: SCHEMA_VERSION,
-    id: 'evt_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
+    id: (typeof TomoApi !== 'undefined' && TomoApi.generateShortId) ? TomoApi.generateShortId(6) : (Date.now().toString(36).slice(-3) + Math.random().toString(36).substring(2, 5)),
     title: title,
     description: desc,
     createdAt: new Date().toISOString(),
@@ -1394,7 +1394,7 @@ function updateUrlHash() {
   if (!appState.currentEvent) return;
   try {
     if (typeof TomoApi !== 'undefined' && TomoApi.isCloudEnabled()) {
-      window.location.hash = `/e/${appState.currentEvent.id}`;
+      window.location.hash = `#${appState.currentEvent.id}`;
       return;
     }
     const jsonStr = JSON.stringify(appState.currentEvent);
